@@ -1,106 +1,42 @@
+# Makefile for Expat library
 LOCAL_PATH:= $(call my-dir)
+include $(CLEAR_VARS)
 
-# We need to build this for both the device (as a shared library)
-# and the host (as a static library for tools to use).
-
-common_SRC_FILES := \
+# Build configuration
+EXPAT_SRC_FILES := \
 	lib/xmlparse.c \
 	lib/xmlrole.c \
 	lib/xmltok.c
 
-common_CFLAGS := \
-    -Wall \
-    -Wmissing-prototypes -Wstrict-prototypes \
-    -Wno-unused-parameter -Wno-missing-field-initializers \
-    -fexceptions \
-    -DHAVE_EXPAT_CONFIG_H
+# Choose compression level (and performance)
+# Default (fast) can bve changed by by setting VERY_FAST=1
+# or ULTRA_FAST=1
+EXPAT_CFLAGS := -DHAVE_EXPAT_CONFIG_H
+EXPAT_CFLAGS += -Wall -fexceptions \
 
-common_C_INCLUDES += \
-	$(LOCAL_PATH)/lib
-
-common_COPY_HEADERS_TO := libexpat
-common_COPY_HEADERS := \
-	lib/expat.h \
-	lib/expat_external.h
-
-# For the host
-# =====================================================
-
+# Build static library
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES := $(common_SRC_FILES)
-LOCAL_CFLAGS += $(common_CFLAGS)
-LOCAL_C_INCLUDES += $(common_C_INCLUDES)
-
-ifeq ($(HOST_OS),darwin)
-	LOCAL_CFLAGS += -fno-common
-endif
-
-LOCAL_MODULE:= libexpat
-LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
+LOCAL_MODULE:= libyahoo_expat
 LOCAL_MODULE_TAGS := optional
 
-include $(BUILD_HOST_STATIC_LIBRARY)
+LOCAL_SRC_FILES := $(EXPAT_SRC_FILES)
+LOCAL_CFLAGS := $(EXPAT_CFLAGS)
 
+# Disable prelink if trying to build within AOSP tree
+LOCAL_PRELINK_MODULE := false
 
-include $(CLEAR_VARS)
+# Building in ARM32 mode improve performance, while adding very little
+# overhead on size of library since this module is very compact
+LOCAL_ARM_MODE := arm
 
-LOCAL_SRC_FILES := $(common_SRC_FILES)
-LOCAL_CFLAGS += $(common_CFLAGS)
-LOCAL_C_INCLUDES += $(common_C_INCLUDES)
+# For the static library to be linked within a shared library, need
+# to compile it with PIC (Position Independant Code) enabled
+LOCAL_CFLAGS += -fPIC -DPIC
 
-ifeq ($(HOST_OS),darwin)
-	LOCAL_CFLAGS += -fno-common
+ifneq ($(NDK_ROOT),)
+# If building with NDK, force using gold linker
+LOCAL_LDLIBS += -fuse-ld=gold 
 endif
-
-LOCAL_MODULE:= libexpat-host
-LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
-LOCAL_MODULE_TAGS := optional
-LOCAL_COPY_HEADERS_TO := $(common_COPY_HEADERS_TO)
-LOCAL_COPY_HEADERS := $(common_COPY_HEADERS)
-
-include $(BUILD_HOST_SHARED_LIBRARY)
-
-
-# For the device
-# =====================================================
-
-# Device static library
-include $(CLEAR_VARS)
-
-ifeq ($(TARGET_ARCH),arm)
-    LOCAL_SDK_VERSION := 8
-else
-    LOCAL_SDK_VERSION := 9
-endif
-
-LOCAL_SRC_FILES := $(common_SRC_FILES)
-LOCAL_CFLAGS += $(common_CFLAGS)
-LOCAL_C_INCLUDES += $(common_C_INCLUDES)
-
-LOCAL_MODULE:= libexpat_static
-LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
-LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_STATIC_LIBRARY)
-
-# Device shared library
-include $(CLEAR_VARS)
-
-ifeq ($(TARGET_ARCH),arm)
-    LOCAL_SDK_VERSION := 8
-else
-    LOCAL_SDK_VERSION := 9
-endif
-
-LOCAL_SRC_FILES := $(common_SRC_FILES)
-LOCAL_CFLAGS += $(common_CFLAGS)
-LOCAL_C_INCLUDES += $(common_C_INCLUDES)
-
-LOCAL_MODULE:= libexpat
-LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_PATH)/Android.mk
-LOCAL_MODULE_TAGS := optional
-LOCAL_COPY_HEADERS_TO := $(common_COPY_HEADERS_TO)
-LOCAL_COPY_HEADERS := $(common_COPY_HEADERS)
-
-include $(BUILD_SHARED_LIBRARY)
